@@ -131,7 +131,7 @@ class RegistrationView(discord.ui.View):
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user in self.players:
             self.players.remove(interaction.user)
-        await interaction.response.edit_message(embed=update_embed(self.bot, self.players, self.game))
+        await interaction.response.edit_message(embed=update_embed(self.bot, self.players, self.game, self.host))
 
     @discord.ui.button(label='Закрыть', style=discord.ButtonStyle.red, custom_id='close_btn')
     async def close_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
