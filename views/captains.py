@@ -93,22 +93,16 @@ class CaptainsView(discord.ui.View):
         self.team_players.append(self.captain_team)
         self.enemy_players.append(self.captain_enemy)
 
-        ow_1 = {}
-        for player in self.team_players:
-            ow_1[player] = discord.PermissionOverwrite(send_messages=True, connect=True)
-        for player in self.enemy_players:
-            ow_1[player] = discord.PermissionOverwrite(send_messages=False, connect=False)
-
-        ow_2 = {}
-        for player in self.team_players:
-            ow_2[player] = discord.PermissionOverwrite(send_messages=False, connect=False)
-        for player in self.enemy_players:
-            ow_2[player] = discord.PermissionOverwrite(send_messages=True, connect=True)
-
         self.vc_1 = await self.text.category.create_voice_channel(name=f'team_{self.captain_team}')
-        await self.vc_1.edit(sync_permissions=True, overwrites=ow_1)
+        await self.vc_1.edit(sync_permissions=True)
         self.vc_2 = await self.text.category.create_voice_channel(name=f'team_{self.captain_enemy}')
-        await self.vc_2.edit(sync_permissions=True, overwrites=ow_2)
+        await self.vc_2.edit(sync_permissions=True)
+
+        for player in self.enemy_players:
+            await self.vc_1.set_permissions(target=player, overwrite=discord.PermissionOverwrite(connect=False))
+
+        for player in self.team_players:
+            await self.vc_2.set_permissions(target=player, overwrite=discord.PermissionOverwrite(connect=False))
 
         # Move players to their team voice
         for player in self.team_players:

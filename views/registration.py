@@ -12,7 +12,7 @@ class RegistrationView(discord.ui.View):
         super().__init__()
         self.timeout = 60 * 60 * 24  # 1 Day
         self.bot = bot
-        self.channel = new_channel
+        self.close_channel = new_channel
         self.game: discord.app_commands.Choice = game
         self.host: discord.Member = host
 
@@ -41,10 +41,10 @@ class RegistrationView(discord.ui.View):
             guild = interaction.guild
             overwrites = {
                 guild.default_role: discord.PermissionOverwrite(
-                    view_channel=False,
-                    read_messages=False,
+                    view_channel=True,
                     send_messages=False,
-                    manage_channels=False
+                    manage_channels=False,
+                    connect=False
                 ),
                 guild.get_role(1112507783993106433): discord.PermissionOverwrite(
                     deafen_members=True,
@@ -58,9 +58,8 @@ class RegistrationView(discord.ui.View):
 
             for player in self.players:
                 overwrites[player] = discord.PermissionOverwrite(
-                    view_channel=True,
-                    read_messages=True,
-                    send_messages=True
+                    send_messages=True,
+                    connect=True
                 )
 
             # Creating category with text and voice channel and syncing their perms with category
@@ -102,7 +101,7 @@ class RegistrationView(discord.ui.View):
                                        f'Канал будет удален через 15 секунд.')
                 await asyncio.sleep(15)
 
-                await self.channel.delete()
+                await self.close_channel.delete()
                 await txt_channel.delete()
                 await vc_channel.delete()
                 await category.delete()
@@ -128,7 +127,7 @@ class RegistrationView(discord.ui.View):
             await txt_channel.send(embed=emb, view=wait_view)
             await wait_view.wait()
 
-            await self.channel.delete()
+            await self.close_channel.delete()
             await txt_channel.delete()
             await vc_channel.delete()
             await category.delete()
