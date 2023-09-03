@@ -125,7 +125,7 @@ class RegistrationView(discord.ui.View):
             self.stop()
             return
 
-        await interaction.edit_original_response(embed=update_embed(self.bot, self.players, self.game), view=self)
+        await interaction.edit_original_response(embed=update_embed(self.bot, self.players, self.game, self.host), view=self)
 
     @discord.ui.button(label='Выйти', style=discord.ButtonStyle.red, custom_id='exit_btn')
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
