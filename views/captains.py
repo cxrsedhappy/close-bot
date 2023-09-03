@@ -89,28 +89,28 @@ class CaptainsView(discord.ui.View):
             )
 
         # Access to vc
+        """TODO: Reformat code"""
         self.team_players.append(self.captain_team)
         self.enemy_players.append(self.captain_enemy)
-        ow_1 = {
-            guild.get_role(1112507783993106433): discord.PermissionOverwrite(read_messages=True, send_messages=True)
-        }
-        for player in self.team_players:
-            ow_1[player] = discord.PermissionOverwrite(connect=True)
-        for player in self.enemy_players:
-            ow_1[player] = discord.PermissionOverwrite(connect=False)
 
-        ow_2 = {
-            guild.get_role(1112507783993106433): discord.PermissionOverwrite(read_messages=True, send_messages=True)
-        }
+        ow_1 = {}
         for player in self.team_players:
-            ow_2[player] = discord.PermissionOverwrite(connect=False)
+            ow_1[player] = discord.PermissionOverwrite(send_messages=True, connect=True)
         for player in self.enemy_players:
-            ow_2[player] = discord.PermissionOverwrite(connect=True)
+            ow_1[player] = discord.PermissionOverwrite(send_messages=False, connect=False)
+
+        ow_2 = {}
+        for player in self.team_players:
+            ow_2[player] = discord.PermissionOverwrite(send_messages=False, connect=False)
+        for player in self.enemy_players:
+            ow_2[player] = discord.PermissionOverwrite(send_messages=True, connect=True)
+
+        self.vc_1 = await self.text.category.create_voice_channel(name=f'team_{self.captain_team}')
+        await self.vc_1.edit(sync_permissions=True, overwrites=ow_1)
+        self.vc_2 = await self.text.category.create_voice_channel(name=f'team_{self.captain_enemy}')
+        await self.vc_2.edit(sync_permissions=True, overwrites=ow_2)
 
         # Move players to their team voice
-        self.vc_1 = await self.text.category.create_voice_channel(name=f'team_{self.captain_team}', overwrites=ow_1)
-        self.vc_2 = await self.text.category.create_voice_channel(name=f'team_{self.captain_enemy}', overwrites=ow_2)
-
         for player in self.team_players:
             await player.move_to(self.vc_1)
 
@@ -125,7 +125,7 @@ class CaptainsView(discord.ui.View):
         await interaction.response.send_message('Завершено')
 
     async def interaction_check(self, interaction: discord.Interaction):
-        if interaction.user.guild_permissions.administrator or interaction.user.roles == settings.CLOSER_ROLE:
+        if interaction.user.guild_permissions.administrator or settings.CLOSER_ROLE in interaction.user.roles:
             return True
         return False
 

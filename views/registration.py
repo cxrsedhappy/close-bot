@@ -4,7 +4,6 @@ import asyncio
 from random import randint
 from discord.ext import commands
 
-import settings
 from views.captains import CaptainsView
 
 
@@ -41,23 +40,41 @@ class RegistrationView(discord.ui.View):
             # give players access to category
             guild = interaction.guild
             overwrites = {
-                guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
-                guild.get_role(1112507783993106433): discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                guild.default_role: discord.PermissionOverwrite(
+                    view_channel=False,
+                    read_messages=False,
+                    send_messages=False,
+                    manage_channels=False
+                ),
+                guild.get_role(1112507783993106433): discord.PermissionOverwrite(
+                    deafen_members=True,
+                    move_members=True,
+                    mute_members=True,
+                    read_messages=True,
+                    send_messages=True,
+                    connect=True,
+                )
             }
 
             for player in self.players:
-                overwrites[player] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                overwrites[player] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    read_messages=True,
+                    send_messages=True
+                )
 
-            # Creating category with text and voice channel
+            # Creating category with text and voice channel and syncing their perms with category
             category = await guild.create_category(name=f'close-{self.game.value}', overwrites=overwrites, position=3)
             txt_channel = await guild.create_text_channel(name=f'text-{self.game.value}', category=category)
+            await txt_channel.edit(sync_permissions=True)
             vc_channel = await guild.create_voice_channel(name=f'voice-{self.game.value}', category=category)
+            await vc_channel.edit(sync_permissions=True)
 
             # Send message to voice chat
             msg = ''
             for player in self.players:
                 msg += f'{player.mention} '
-            await txt_channel.send(f'{msg}У вас 5 минуты чтобы зайти в канал {vc_channel}')
+            await txt_channel.send(f'{msg}У вас 5 минуты чтобы зайти в канал {vc_channel.mention}')
 
             # Voice check
             state = False
@@ -125,7 +142,10 @@ class RegistrationView(discord.ui.View):
             self.stop()
             return
 
-        await interaction.edit_original_response(embed=update_embed(self.bot, self.players, self.game, self.host), view=self)
+        await interaction.edit_original_response(
+            embed=update_embed(self.bot, self.players, self.game, self.host),
+            view=self
+        )
 
     @discord.ui.button(label='Выйти', style=discord.ButtonStyle.red, custom_id='exit_btn')
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -136,7 +156,7 @@ class RegistrationView(discord.ui.View):
     @discord.ui.button(label='Закрыть', style=discord.ButtonStyle.red, custom_id='close_btn')
     async def close_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         user = interaction.user
-        if user.guild_permissions.administrator or settings.CLOSER_ROLE in user.roles:
+        if user.guild_permissions.administrator is True or self.host == interaction.user:
             await interaction.channel.delete()
             self.stop()
             return
