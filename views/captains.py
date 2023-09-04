@@ -1,7 +1,10 @@
+import random
+import string
+import secrets
 import discord
+import settings
 from discord.ext import commands
 from views.pick import PickView
-import settings
 
 
 class CaptainsView(discord.ui.View):
@@ -10,6 +13,7 @@ class CaptainsView(discord.ui.View):
                  captain_team: discord.Member,
                  captain_enemy: discord.Member,
                  host: discord.Member,
+                 game: discord.app_commands.Choice,
                  text: discord.TextChannel,
                  voice: discord.VoiceChannel,
                  emb: discord.Embed):
@@ -20,6 +24,7 @@ class CaptainsView(discord.ui.View):
         self.captain_team = captain_team
         self.captain_enemy = captain_enemy
         self.host = host
+        self.game = game
 
         self.text = text
         self.voice = voice
@@ -111,6 +116,17 @@ class CaptainsView(discord.ui.View):
         for player in self.enemy_players:
             await player.move_to(self.vc_2)
 
+        if self.game.value == 'dota':
+            alphabet = string.ascii_letters + string.digits
+            lobby = f'discord.gg/5x5_{self.game}-{random.randint(0, 100)}'
+            password = ''.join(secrets.choice(alphabet) for _ in range(12))
+            embed = discord.Embed(
+                title='Лобби в Dota 2',
+                description=f'Название: **{lobby}**\n'
+                            f'Пароль: **{password}**'
+            )
+            await interaction.followup.send(embed=embed)
+
         await interaction.followup.send(f"Удачной игры!")
 
     @discord.ui.button(label='Завершить', style=discord.ButtonStyle.red, custom_id='exit_btn')
@@ -142,6 +158,6 @@ def update(embed: discord.Embed, c_team, team_player, c_enemy, enemy_player, rem
     embed.add_field(name='Игроки', value=msg if msg != '' else '`Никого`')
     embed.add_field(name=f'team_{c_team}', value=t)
     embed.add_field(name=f'team_{c_enemy}', value=e)
-    embed.set_footer(text=f'{host.name}')
+    embed.set_footer(text=f'{host.name}', icon_url=host.avatar.url)
 
     return embed

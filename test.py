@@ -1,10 +1,9 @@
-from random import randint
+import secrets
+import string
+import random
 
-a = [1, 2, 3, 4]
+alphabet = string.ascii_letters + string.digits
+lobby = f'discord.gg/5x5_dota2-{random.randint(0, 100)}'
+password = ''.join(secrets.choice(alphabet) for _ in range(12))
 
-i = randint(0, len(a) - 1)
-t = a.pop(randint(0, len(a)))
-j = a.pop(randint(0, len(a)))
-
-
-print(t, j)
+print(lobby, password)

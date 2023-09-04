@@ -13,10 +13,11 @@ class Notifications(discord.ui.Select):
         super().__init__(placeholder='Выберите уведомления', min_values=0, max_values=2, options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        existed = {
+        """TODO: Optimize it"""
+        await interaction.user.remove_roles(
             interaction.guild.get_role(1147633914794479676),
             interaction.guild.get_role(1138235016917307432)
-        }
+        )
 
         for value in self.values:
             role = interaction.guild.get_role(int(value))

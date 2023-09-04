@@ -73,7 +73,7 @@ class RegistrationView(discord.ui.View):
             msg = ''
             for player in self.players:
                 msg += f'{player.mention} '
-            await txt_channel.send(f'{msg}У вас 5 минуты чтобы зайти в канал {vc_channel.mention}')
+            await txt_channel.send(f'{msg}У вас 5 минут чтобы зайти в канал {vc_channel.mention}')
 
             # Voice check
             state = False
@@ -119,10 +119,10 @@ class RegistrationView(discord.ui.View):
             for player in self.players:
                 text_player += f'{player.mention}\n'
             emb.add_field(name='Игроки', value=text_player)
-            emb.set_footer(text=f'Hosted by {self.host.name}')
+            emb.set_footer(text=f'Hosted by {self.host.name}', icon_url=self.host.avatar.url)
 
             wait_view = CaptainsView(
-                self.bot, self.players, captain_team, captain_enemy, self.host, txt_channel, vc_channel, emb
+                self.bot, self.players, captain_team, captain_enemy, self.host, self.game, txt_channel, vc_channel, emb
             )
             await txt_channel.send(embed=emb, view=wait_view)
             await wait_view.wait()
@@ -195,6 +195,6 @@ def update_embed(bot: commands.Bot,
     e.set_thumbnail(url=images.get(len(players), 0))
     e.set_image(url=f'{base_url}{games_url.get(game.value)}')
     e.set_author(name=f"Регистрация на Клоз по {game.name}", icon_url=bot.application.icon.url)
-    e.set_footer(text=f'Hosted by {host.name}')
+    e.set_footer(text=f'Hosted by {host.name}', icon_url=host.avatar.url)
 
     return e
