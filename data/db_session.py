@@ -1,4 +1,3 @@
-import logging
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
 import sqlalchemy.ext.declarative as dec
@@ -19,9 +18,6 @@ def global_init(db_file):
         raise Exception("Database name required")
 
     conn_str = f'sqlite:///{db_file.strip()}?check_same_thread=False'
-
-    logging.info(f"Connecting to {conn_str}...")
-    print(f"Connecting to {conn_str}...")
 
     engine = sa.create_engine(conn_str, echo=False)
     __factory = orm.sessionmaker(bind=engine)

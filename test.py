@@ -1,9 +1,36 @@
-import secrets
-import string
-import random
+from data.members import Player, Close, PlayerClose, Teams
+from data.db_session import global_init, create_session
 
-alphabet = string.ascii_letters + string.digits
-lobby = f'discord.gg/5x5_dota2-{random.randint(0, 100)}'
-password = ''.join(secrets.choice(alphabet) for _ in range(12))
+global_init('db/database')
+connection = create_session()
 
-print(lobby, password)
+player = connection.query(Player).limit(10).all()
+
+team_player = player[:5]
+enemy_players = player[5:]
+
+print(team_player)
+print(enemy_players)
+
+# c = Close(winner=Teams.team1)
+
+# for p in team_player:
+#     a = PlayerClose(team=Teams.team1)
+#     a.close = c
+#     p.closes.append(a)
+#     connection.add(a)
+#
+# for p in enemy_players:
+#     a = PlayerClose(team=Teams.team2)
+#     a.close = c
+#     p.closes.append(a)
+#     connection.add(a)
+
+"TODO: Learn SQLAlchemy to make better requests"
+for p in team_player:
+    print(p.id, p.coins, p.closes)
+
+connection.close()
+
+
+
