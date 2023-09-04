@@ -164,17 +164,17 @@ class RegistrationView(discord.ui.View):
 
 base_url = 'https://cdn.discordapp.com/attachments/1147246596170448896'
 images = {
-    10: f'{base_url}/1147259700577062962/full.png',
-    9: f'{base_url}/1147259698161135746/1.png',
-    8: f'{base_url}/1147259698425385030/2.png',
-    7: f'{base_url}/1147259698798661682/3.png',
-    6: f'{base_url}/1147259699041939517/4.png',
-    5: f'{base_url}/1147259699276828772/5.png',
-    4: f'{base_url}/1147259699536859286/6.png',
-    3: f'{base_url}/1147259699809505491/7.png',
-    2: f'{base_url}/1147259700052758579/8.png',
-    1: f'{base_url}/1147259700325396520/9.png',
-    0: f'{base_url}/1147263693671890985/10.png'
+    10: f'{base_url}/1148019117559910430/full.png',
+    9: f'{base_url}/1148019096148000768/1.png',
+    8: f'{base_url}/1148019096437399662/2.png',
+    7: f'{base_url}/1148019096789725204/3.png',
+    6: f'{base_url}/1148019097255297045/4.png',
+    5: f'{base_url}/1148019097624387584/5.png',
+    4: f'{base_url}/1148019097863467188/6.png',
+    3: f'{base_url}/1148019098375168151/7.png',
+    2: f'{base_url}/1148019098714910751/8.png',
+    1: f'{base_url}/1148019099012710471/9.png',
+    0: f'{base_url}/1148019095841812590/10.png'
 }
 
 games_url = {
