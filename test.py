@@ -26,6 +26,8 @@ print(enemy_players)
 #     p.closes.append(a)
 #     connection.add(a)
 
+print(ord('\n'))
+
 "TODO: Learn SQLAlchemy to make better requests"
 for p in team_player:
     print(p.id, p.coins, p.closes)

@@ -3,11 +3,10 @@ import logging
 import asyncio
 import discord
 import settings
-import datetime
 
 from discord.ext import commands
 
-from data.members import Player, Close, PlayerClose, Teams
+from data.members import Player
 from data.db_session import global_init, create_session
 
 
@@ -23,7 +22,6 @@ class Client(commands.Bot):
             if fn.endswith(".py"):
                 await client.load_extension(f'cogs.{fn[:-3]}')
 
-        # uncomment it when you're creating new slash command or changing args in slash commands
         # await self.tree.sync(guild=discord.Object(settings.SERVER))
         _log.info("Commands synced")
 

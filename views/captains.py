@@ -123,7 +123,8 @@ class CaptainsView(discord.ui.View):
             embed = discord.Embed(
                 title='Лобби в Dota 2',
                 description=f'Название: **{lobby}**\n'
-                            f'Пароль: **{password}**'
+                            f'Пароль: **{password}**',
+                colour=2829617
             )
             await interaction.followup.send(embed=embed)
 

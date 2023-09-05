@@ -8,11 +8,11 @@ from views.captains import CaptainsView
 
 
 class RegistrationView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, new_channel, game, host):
+    def __init__(self, bot: commands.Bot, game_channel, game, host):
         super().__init__()
         self.timeout = 60 * 60 * 24  # 1 Day
         self.bot = bot
-        self.close_channel = new_channel
+        self.game_channel = game_channel
         self.game: discord.app_commands.Choice = game
         self.host: discord.Member = host
 
@@ -34,7 +34,7 @@ class RegistrationView(discord.ui.View):
             self.children[1].disabled = True
             self.children[2].disabled = True
             await interaction.edit_original_response(
-                embed=update_embed(self.bot, self.players, self.game, self.host),
+                embed=update(self.bot, self.players, self.game, self.host),
                 view=self)
 
             # give players access to category
@@ -101,7 +101,6 @@ class RegistrationView(discord.ui.View):
                                        f'Канал будет удален через 15 секунд.')
                 await asyncio.sleep(15)
 
-                await self.close_channel.delete()
                 await txt_channel.delete()
                 await vc_channel.delete()
                 await category.delete()
@@ -113,7 +112,9 @@ class RegistrationView(discord.ui.View):
             captain_enemy = self.players.pop(randint(0, len(self.players) - 1))
 
             emb = discord.Embed(
-                title="Выбор игроков", description=f'**Капитаны**: {captain_team.mention} и {captain_enemy.mention}'
+                title="Выбор игроков",
+                description=f'**Капитаны**: {captain_team.mention} и {captain_enemy.mention}',
+                colour=2829617
             )
             text_player = ''
             for player in self.players:
@@ -127,7 +128,6 @@ class RegistrationView(discord.ui.View):
             await txt_channel.send(embed=emb, view=wait_view)
             await wait_view.wait()
 
-            await self.close_channel.delete()
             await txt_channel.delete()
             await vc_channel.delete()
             await category.delete()
@@ -142,7 +142,7 @@ class RegistrationView(discord.ui.View):
             return
 
         await interaction.edit_original_response(
-            embed=update_embed(self.bot, self.players, self.game, self.host),
+            embed=update(self.bot, self.players, self.game, self.host),
             view=self
         )
 
@@ -150,16 +150,19 @@ class RegistrationView(discord.ui.View):
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user in self.players:
             self.players.remove(interaction.user)
-        await interaction.response.edit_message(embed=update_embed(self.bot, self.players, self.game, self.host))
+        await interaction.response.edit_message(embed=update(self.bot, self.players, self.game, self.host))
 
     @discord.ui.button(label='Закрыть', style=discord.ButtonStyle.red, custom_id='close_btn')
     async def close_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         user = interaction.user
         if user.guild_permissions.administrator is True or self.host == interaction.user:
-            await interaction.channel.delete()
+            await interaction.message.delete()
             self.stop()
             return
         await interaction.response.send_message('У вас нет права', ephemeral=True)
+
+    async def on_timeout(self) -> None:
+        self.game_channel.delete()
 
 
 base_url = 'https://cdn.discordapp.com/attachments/1147246596170448896'
@@ -183,15 +186,16 @@ games_url = {
 }
 
 
-def update_embed(bot: commands.Bot,
-                 players: list[discord.Member],
-                 game: discord.app_commands.Choice,
-                 host: discord.Member) -> discord.Embed:
+def update(bot: commands.Bot,
+           players: list[discord.Member],
+           game: discord.app_commands.Choice,
+           host: discord.Member) -> discord.Embed:
+
     description = ''
     for i, player in enumerate(players, 1):
         description += f'{i}: {player.mention}\n'
 
-    e = discord.Embed(title=f'Игроки ({len(players)} из 10)', description=description)
+    e = discord.Embed(title=f'Игроки ({len(players)} из 10)', description=description, colour=2829617)
     e.set_thumbnail(url=images.get(len(players), 0))
     e.set_image(url=f'{base_url}{games_url.get(game.value)}')
     e.set_author(name=f"Регистрация на Клоз по {game.name}", icon_url=bot.application.icon.url)

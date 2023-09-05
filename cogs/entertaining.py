@@ -35,8 +35,11 @@ class CloseCog(commands.Cog):
         https://discordpy.readthedocs.io/en/stable/interactions/api.html#discord.app_commands.checks.has_permissions
         """
 
-        category = self.bot.get_channel(settings.REG_CATEGORY_ID)
-        new_channel = await interaction.guild.create_text_channel(name=f'{game.name}', category=category)
+        # REMOVE IT LATER THIS IS WORKAROUND
+        game_channel: discord.TextChannel = self.bot.get_channel(settings.REG_DOTA_ID)
+
+        if game.value == 'valorant':
+            game_channel = self.bot.get_channel(settings.REG_VALORANT_ID)
 
         base_url = 'https://cdn.discordapp.com/attachments/1147246596170448896'
 
@@ -50,15 +53,15 @@ class CloseCog(commands.Cog):
             'valorant': interaction.guild.get_role(1138235016917307432)
         }
 
-        e = discord.Embed(title=f'Игроки (0 из 10)')
+        e = discord.Embed(title=f'Игроки (0 из 10)', colour=2829617)
         e.set_author(name=f"Регистрация на Клоз по {game.name}", icon_url=self.bot.application.icon.url)
         e.set_thumbnail(url=f'{base_url}/1147263693671890985/10.png')
         e.set_image(url=f'{base_url}{games_url.get(game.value)}')
         e.set_footer(text=f'Hosted by {interaction.user.name}', icon_url=interaction.user.avatar.url)
 
-        await new_channel.send(f'{roles.get(game.value).mention}',
+        await game_channel.send(f'{roles.get(game.value).mention}',
                                embed=e,
-                               view=RegistrationView(self.bot, new_channel, game, interaction.user))
+                               view=RegistrationView(self.bot, game_channel, game, interaction.user))
         await interaction.response.send_message(f'close-{game.value} зарегистрирован', ephemeral=True)
 
 
