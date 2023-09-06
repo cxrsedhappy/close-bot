@@ -1,13 +1,10 @@
-import random
 import discord
 
 from random import randint
-from discord.ext import commands
 
 
 class PickPlayer(discord.ui.Select):
-    def __init__(self,
-                 players: list[discord.Member]):
+    def __init__(self, players: list[discord.Member]):
 
         options = [
             discord.SelectOption(
@@ -21,21 +18,22 @@ class PickPlayer(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         self.view.picked_player = int(self.values[0])
-        await interaction.response.send_message(f'Вы пикнули {self.values[0]}', ephemeral=True)
+        await interaction.response.send_message(
+            f'Вы выбрали {interaction.guild.get_member(int(self.values[0])).name}', ephemeral=True
+        )
         self.view.stop()
 
 
 class PickView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, players: list[discord.Member], captain):
+    def __init__(self, players: list[discord.Member], captain):
         super().__init__()
-        self.timeout = 60 * 3
-        self.bot = bot
         self.players = players
         self.captain = captain
+        self.timeout = 60 * 3
 
         dropdown = PickPlayer(self.players)
         self.add_item(dropdown)
-        self.picked_player = self.players[random.randint(0, len(self.players) - 1)]
+        self.picked_player = self.players[randint(0, len(self.players) - 1)]
 
     async def interaction_check(self, interaction: discord.Interaction):
         if interaction.user == self.captain:

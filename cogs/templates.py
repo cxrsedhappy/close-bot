@@ -5,7 +5,7 @@ from discord import app_commands
 from discord.ext import commands
 
 import settings
-from views.notifications import NotificationsView
+from views.menu import NotificationsView
 from modals.say import Emb
 
 _log = logging.getLogger(__name__)

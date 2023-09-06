@@ -1,20 +1,25 @@
-import discord
 import asyncio
+import discord
 
 from random import randint
-from discord.ext import commands
+
+from sqlalchemy import select
+from data.db_session import create_session, Player
 
 from views.captains import CaptainsView
+from src.images import images, games_url
 
 
 class RegistrationView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, game_channel, game, host):
+    def __init__(self,
+                 channel: discord.TextChannel,
+                 game: discord.app_commands.Choice,
+                 host: discord.Member):
         super().__init__()
-        self.timeout = 60 * 60 * 24  # 1 Day
-        self.bot = bot
-        self.game_channel = game_channel
+        self.channel: discord.TextChannel = channel
         self.game: discord.app_commands.Choice = game
         self.host: discord.Member = host
+        self.timeout = 60 * 60 * 24  # 1 Day
 
         self.players: list[discord.Member] = []
 
@@ -27,15 +32,28 @@ class RegistrationView(discord.ui.View):
             await interaction.followup.send('Вы уже зарегистрировались', ephemeral=True)
             return
 
+        session = await create_session()
+        player = await session.execute(select(Player).where(Player.id == interaction.user.id))
+        player = player.scalar()
+        if player.is_registered:
+            await interaction.followup.send('Вы уже зарегистрировались на другой клоз', ephemeral=True)
+            return
+
+        player.is_registered = True
         self.players.append(interaction.user)
-        if len(self.players) >= 10:
+        await session.commit()
+        await session.close()
+
+        await interaction.edit_original_response(embed=update(self.players, self.game, self.host), view=self)
+        if len(self.players) >= 4:
 
             button.disabled = True
             self.children[1].disabled = True
             self.children[2].disabled = True
             await interaction.edit_original_response(
-                embed=update(self.bot, self.players, self.game, self.host),
-                view=self)
+                embed=update(self.players, self.game, self.host),
+                view=self
+            )
 
             # give players access to category
             guild = interaction.guild
@@ -57,10 +75,7 @@ class RegistrationView(discord.ui.View):
             }
 
             for player in self.players:
-                overwrites[player] = discord.PermissionOverwrite(
-                    send_messages=True,
-                    connect=True
-                )
+                overwrites[player] = discord.PermissionOverwrite(send_messages=True, connect=True)
 
             # Creating category with text and voice channel and syncing their perms with category
             category = await guild.create_category(name=f'close-{self.game.value}', overwrites=overwrites, position=3)
@@ -70,9 +85,7 @@ class RegistrationView(discord.ui.View):
             await vc_channel.edit(sync_permissions=True)
 
             # Send message to voice chat
-            msg = ''
-            for player in self.players:
-                msg += f'{player.mention} '
+            msg = ' '.join(player.mention for player in self.players)
             await txt_channel.send(f'{msg}У вас 5 минут чтобы зайти в канал {vc_channel.mention}')
 
             # Voice check
@@ -92,15 +105,10 @@ class RegistrationView(discord.ui.View):
 
             """TODO: REMOVE THIS FUCKING WORKAROUND"""
             if not state:
-
-                msg = ''
-                for p in to_ping:
-                    msg += f'{p.mention} '
-
+                msg = ' '.join(player.mention for player in to_ping)
                 await txt_channel.send(f'{msg} **не находятся** в голосовом канале. Игра не может быть начата\n'
-                                       f'Канал будет удален через 15 секунд.')
-                await asyncio.sleep(15)
-
+                                       f'Канал будет удален через 10 секунд.')
+                await asyncio.sleep(10)
                 await txt_channel.delete()
                 await vc_channel.delete()
                 await category.delete()
@@ -116,78 +124,62 @@ class RegistrationView(discord.ui.View):
                 description=f'**Капитаны**: {captain_team.mention} и {captain_enemy.mention}',
                 colour=2829617
             )
-            text_player = ''
-            for player in self.players:
-                text_player += f'{player.mention}\n'
-            emb.add_field(name='Игроки', value=text_player)
-            emb.set_footer(text=f'Hosted by {self.host.name}', icon_url=self.host.avatar.url)
+            txt = '\n'.join(player.mention for player in self.players)
+            emb.add_field(name='Игроки', value=txt)
+            emb.set_footer(text=f'Hosted by {self.host.name}')
 
-            wait_view = CaptainsView(
-                self.bot, self.players, captain_team, captain_enemy, self.host, self.game, txt_channel, vc_channel, emb
+            captain_view = CaptainsView(
+                self.players, captain_team, captain_enemy, self.host, self.game, txt_channel, vc_channel, emb
             )
-            await txt_channel.send(embed=emb, view=wait_view)
-            await wait_view.wait()
+
+            await txt_channel.send(embed=emb, view=captain_view)
+            await captain_view.wait()
 
             await txt_channel.delete()
             await vc_channel.delete()
             await category.delete()
-
-            try:
-                await wait_view.vc_1.delete()
-                await wait_view.vc_2.delete()
-            except AttributeError as e:
-                print('Ended')
+            await self.channel.delete()
 
             self.stop()
             return
-
-        await interaction.edit_original_response(
-            embed=update(self.bot, self.players, self.game, self.host),
-            view=self
-        )
 
     @discord.ui.button(label='Выйти', style=discord.ButtonStyle.red, custom_id='exit_btn')
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user in self.players:
             self.players.remove(interaction.user)
-        await interaction.response.edit_message(embed=update(self.bot, self.players, self.game, self.host))
+
+            session = await create_session()
+            player = await session.execute(select(Player).where(Player.id == interaction.user.id))
+            player = player.scalar()
+            player.is_registered = False
+            await session.commit()
+            await session.close()
+
+        await interaction.response.edit_message(embed=update(self.players, self.game, self.host))
 
     @discord.ui.button(label='Закрыть', style=discord.ButtonStyle.red, custom_id='close_btn')
     async def close_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        user = interaction.user
-        if user.guild_permissions.administrator is True or self.host == interaction.user:
-            await interaction.message.delete()
+        if interaction.user.guild_permissions.administrator is True or self.host == interaction.user:
+
+            session = await create_session()
+            for player in self.players:
+                p = await session.execute(select(Player).where(Player.id == player.id))
+                p = p.scalar()
+                p.is_registered = False
+
+            await session.commit()
+            await session.close()
+
+            await self.channel.delete()
             self.stop()
             return
         await interaction.response.send_message('У вас нет права', ephemeral=True)
 
     async def on_timeout(self) -> None:
-        self.game_channel.delete()
+        await self.channel.delete()
 
 
-base_url = 'https://cdn.discordapp.com/attachments/1147246596170448896'
-images = {
-    10: f'{base_url}/1148019117559910430/full.png',
-    9: f'{base_url}/1148019096148000768/1.png',
-    8: f'{base_url}/1148019096437399662/2.png',
-    7: f'{base_url}/1148019096789725204/3.png',
-    6: f'{base_url}/1148019097255297045/4.png',
-    5: f'{base_url}/1148019097624387584/5.png',
-    4: f'{base_url}/1148019097863467188/6.png',
-    3: f'{base_url}/1148019098375168151/7.png',
-    2: f'{base_url}/1148019098714910751/8.png',
-    1: f'{base_url}/1148019099012710471/9.png',
-    0: f'{base_url}/1148019095841812590/10.png'
-}
-
-games_url = {
-    'dota': '/1147574166376169652/dota2close.png',
-    'valorant': '/1147574166636200057/valorantclose.png'
-}
-
-
-def update(bot: commands.Bot,
-           players: list[discord.Member],
+def update(players: list[discord.Member],
            game: discord.app_commands.Choice,
            host: discord.Member) -> discord.Embed:
 
@@ -195,10 +187,10 @@ def update(bot: commands.Bot,
     for i, player in enumerate(players, 1):
         description += f'{i}: {player.mention}\n'
 
-    e = discord.Embed(title=f'Игроки ({len(players)} из 10)', description=description, colour=2829617)
-    e.set_thumbnail(url=images.get(len(players), 0))
-    e.set_image(url=f'{base_url}{games_url.get(game.value)}')
-    e.set_author(name=f"Регистрация на Клоз по {game.name}", icon_url=bot.application.icon.url)
-    e.set_footer(text=f'Hosted by {host.name}', icon_url=host.avatar.url)
+    embed = discord.Embed(title=f'Игроки ({len(players)} из 10)', description=description, colour=2829617)
+    embed.set_thumbnail(url=images.get(len(players), 0))
+    embed.set_image(url=f'{games_url.get(game.value)}')
+    embed.set_author(name=f"Регистрация на Клоз по {game.name}")
+    embed.set_footer(text=f'Hosted by {host.name}')
 
-    return e
+    return embed

@@ -3,12 +3,13 @@ import string
 import secrets
 import discord
 import settings
-from discord.ext import commands
+
 from views.pick import PickView
+from views.menu import WinnerView
 
 
 class CaptainsView(discord.ui.View):
-    def __init__(self, bot: commands.Bot,
+    def __init__(self,
                  players: list[discord.Member],
                  captain_team: discord.Member,
                  captain_enemy: discord.Member,
@@ -19,7 +20,6 @@ class CaptainsView(discord.ui.View):
                  emb: discord.Embed):
         super().__init__()
 
-        self.bot = bot
         self.players = players
         self.captain_team = captain_team
         self.captain_enemy = captain_enemy
@@ -46,9 +46,9 @@ class CaptainsView(discord.ui.View):
         guild = interaction.guild
 
         """TODO RECODE THIS MESS"""
-        for i in range(4):
+        for i in range(1):
             # First Captain
-            view = PickView(self.bot, self.players, self.captain_team)
+            view = PickView(self.players, self.captain_team)
             await interaction.followup.send(f'{self.captain_team.mention}', view=view)
             await view.wait()
             await self.text.purge(limit=1)
@@ -71,7 +71,7 @@ class CaptainsView(discord.ui.View):
             )
 
             # Second Captain
-            view_2 = PickView(self.bot, self.players, self.captain_enemy)
+            view_2 = PickView(self.players, self.captain_enemy)
             await interaction.followup.send(f'{self.captain_enemy.mention}', view=view_2)
             await view_2.wait()
             await self.text.purge(limit=1)
@@ -94,37 +94,29 @@ class CaptainsView(discord.ui.View):
             )
 
         # Access to vc
-        """TODO: Reformat code"""
         self.team_players.append(self.captain_team)
         self.enemy_players.append(self.captain_enemy)
 
         self.vc_1 = await self.text.category.create_voice_channel(name=f'team_{self.captain_team}')
-        await self.vc_1.edit(sync_permissions=True)
         self.vc_2 = await self.text.category.create_voice_channel(name=f'team_{self.captain_enemy}')
+        await self.vc_1.edit(sync_permissions=True)
         await self.vc_2.edit(sync_permissions=True)
 
-        for player in self.enemy_players:
-            await self.vc_1.set_permissions(target=player, overwrite=discord.PermissionOverwrite(connect=False))
-
-        for player in self.team_players:
-            await self.vc_2.set_permissions(target=player, overwrite=discord.PermissionOverwrite(connect=False))
+        for team, enemy in zip(self.team_players, self.enemy_players):
+            await self.vc_1.set_permissions(target=enemy, overwrite=discord.PermissionOverwrite(connect=False))
+            await self.vc_2.set_permissions(target=team, overwrite=discord.PermissionOverwrite(connect=False))
 
         # Move players to their team voice
-        for player in self.team_players:
-            await player.move_to(self.vc_1)
-
-        for player in self.enemy_players:
-            await player.move_to(self.vc_2)
+        for team, enemy in zip(self.team_players, self.enemy_players):
+            await team.move_to(self.vc_1)
+            await enemy.move_to(self.vc_2)
 
         if self.game.value == 'dota':
             alphabet = string.ascii_letters + string.digits
-            lobby = f'discord.gg/5x5_{self.game}-{random.randint(0, 100)}'
-            password = ''.join(secrets.choice(alphabet) for _ in range(12))
+            lobby = f'discord.gg/5x5_{random.randint(0, 100)}'
+            password = ''.join(secrets.choice(alphabet) for _ in range(6))
             embed = discord.Embed(
-                title='Лобби в Dota 2',
-                description=f'Название: **{lobby}**\n'
-                            f'Пароль: **{password}**',
-                colour=2829617
+                title='Лобби в Dota 2', description=f'Название: **{lobby}**\nПароль: **{password}**', colour=2829617
             )
             await interaction.followup.send(embed=embed)
 
@@ -132,8 +124,17 @@ class CaptainsView(discord.ui.View):
 
     @discord.ui.button(label='Завершить', style=discord.ButtonStyle.red, custom_id='exit_btn')
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        winner = WinnerView(
+            self.captain_team, self.captain_enemy, self.team_players, self.enemy_players, self.game, self.host
+        )
+        await interaction.response.send_message(view=winner, ephemeral=True)
+        await winner.wait()
+
+        await interaction.channel.send('Завершено')
+        await self.vc_1.delete()
+        await self.vc_2.delete()
+
         self.stop()
-        await interaction.response.send_message('Завершено')
 
     async def interaction_check(self, interaction: discord.Interaction):
         if interaction.user.guild_permissions.administrator or settings.CLOSER_ROLE in interaction.user.roles:
@@ -144,21 +145,15 @@ class CaptainsView(discord.ui.View):
 def update(embed: discord.Embed, c_team, team_player, c_enemy, enemy_player, remaining_player, host):
     embed.clear_fields()
 
-    msg = ''
-    for p in remaining_player:
-        msg += f'{p.mention}\n'
+    msg = '\n'.join(player.mention for player in remaining_player)
+    team = '\n'.join(player.mention for player in team_player)
+    enemy = '\n'.join(player.mention for player in enemy_player)
 
-    t = ''
-    for p in team_player:
-        t += f'{p.mention}\n'
+    if msg != '':
+        embed.add_field(name='Игроки', value=msg)
 
-    e = ''
-    for p in enemy_player:
-        e += f'{p.mention}\n'
-
-    embed.add_field(name='Игроки', value=msg if msg != '' else '`Никого`')
-    embed.add_field(name=f'team_{c_team}', value=t)
-    embed.add_field(name=f'team_{c_enemy}', value=e)
-    embed.set_footer(text=f'{host.name}', icon_url=host.avatar.url)
+    embed.add_field(name=f'team_{c_team}', value=team)
+    embed.add_field(name=f'team_{c_enemy}', value=enemy)
+    embed.set_footer(text=f'Hosted by {host.name}')
 
     return embed

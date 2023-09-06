@@ -1,13 +1,13 @@
 import os
-import logging
 import asyncio
 import discord
+import logging
 import settings
 
-from discord.ext import commands
+from sqlalchemy import select
 
-from data.members import Player
-from data.db_session import global_init, create_session
+from discord.ext import commands
+from data.db_session import create_session, global_init, Player
 
 
 _log = logging.getLogger(__name__)
@@ -26,31 +26,33 @@ class Client(commands.Bot):
         _log.info("Commands synced")
 
     async def on_ready(self) -> None:
-        connection = create_session()
-        members = self.get_guild(settings.SERVER).members
+        await global_init()
 
-        for member in members:
+        session = await create_session()
+        for member in self.get_guild(settings.SERVER).members:
             if not member.bot:
-                exists = connection.query(Player).where(Player.id == member.id).all()
-                if not exists:
-                    connection.add(Player(uid=member.id, coins=0))
+                query = select(Player).where(Player.id == member.id)
+                exists = await session.execute(query)
+                if exists.scalar() is None:
+                    session.add(Player(member.id, 0))
 
-        connection.commit()
-        connection.close()
+        await session.commit()
+        await session.close()
 
         activity = discord.Activity(name="Боже, храни Америку", type=discord.ActivityType.playing)
         await client.change_presence(activity=activity)
         _log.info('on_ready done')
 
     async def on_member_join(self, member: discord.Member):
-        connection = create_session()
+        session = await create_session()
 
-        exists = connection.query(Player).where(Player.id == member.id).all()
-        if not exists:
-            connection.add(Player(uid=member.id, coins=0))
+        query = select(Player).where(Player.id == member.id)
+        exists = await session.execute(query)
+        if exists.scalar() is None:
+            session.add(Player(member.id, 0))
 
-        connection.commit()
-        connection.close()
+        await session.commit()
+        await session.close()
 
 
 async def main():
@@ -60,5 +62,4 @@ async def main():
 
 if __name__ == '__main__':
     client = Client()
-    global_init('db/database')
     asyncio.run(main())
