@@ -4,7 +4,7 @@ import discord
 from discord.ui import Modal, TextInput
 
 
-class Emb(Modal, title='Embed'):
+class CreateEmbed(Modal, title='Embed'):
     json = TextInput(label='JSON', style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):

@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 
-
 from sqlalchemy_serializer import SerializerMixin
 
 
@@ -30,7 +29,6 @@ class Player(Base, SerializerMixin):
     def __init__(self, uid, coins):
         self.id = uid
         self.coins = coins
-        self.is_registered = False
 
 
 class Close(Base, SerializerMixin):

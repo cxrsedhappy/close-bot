@@ -1,7 +1,7 @@
 import discord
 import settings
 
-from src.images import games_url
+from utils import BasicEmbed, games
 
 
 class Notifications(discord.ui.Select):
@@ -26,7 +26,7 @@ class Notifications(discord.ui.Select):
             role = interaction.guild.get_role(int(value))
             await interaction.user.add_roles(role)
 
-        embed = discord.Embed(description='Вы успешно **получили** роль')
+        embed = BasicEmbed(description='Вы успешно **получили** роль')
         embed.set_author(name='Получение роли уведомлений', icon_url=interaction.user.avatar.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -42,23 +42,23 @@ class NotificationsView(discord.ui.View):
 
 class Winner(discord.ui.Select):
     def __init__(self,
-                 team_captain: discord.Member,
-                 enemy_captain: discord.Member,
-                 team_players: list[discord.Member],
-                 enemy_players: list[discord.Member],
+                 t_cap: discord.Member,
+                 e_cap: discord.Member,
+                 t_players: list[discord.Member],
+                 e_players: list[discord.Member],
                  game: discord.app_commands.Choice,
                  host: discord.Member):
 
-        self.team_captain = team_captain
-        self.enemy_captain = enemy_captain
-        self.team_players = team_players
-        self.enemy_players = enemy_players
+        self.t_cap = t_cap
+        self.e_cap = e_cap
+        self.t_players = t_players
+        self.e_players = e_players
         self.game = game
         self.host = host
 
         options = [
-            discord.SelectOption(label=f'team_{self.team_captain.name}', value=f'{self.team_captain.id}'),
-            discord.SelectOption(label=f'team_{self.enemy_captain.name}', value=f'{self.enemy_captain.id}'),
+            discord.SelectOption(label=f'team_{self.t_cap.name}', value=f'{self.t_cap.id}'),
+            discord.SelectOption(label=f'team_{self.e_cap.name}', value=f'{self.e_cap.id}'),
         ]
 
         super().__init__(placeholder='Выберите победителя', min_values=1, max_values=1, options=options)
@@ -66,17 +66,16 @@ class Winner(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         history_channel = interaction.guild.get_channel(settings.HISTORY_CHANNEL_ID)
 
-        team_value = '\n'.join(player.mention for player in self.team_players)
-        enemy_value = '\n'.join(player.mention for player in self.enemy_players)
-        winner = f'team_{self.team_captain.name}' \
-            if self.values[0] == self.team_captain.id else \
-            f'team_{self.enemy_captain.name}'
+        team_value = '\n'.join(player.mention for player in self.t_players)
+        enemy_value = '\n'.join(player.mention for player in self.e_players)
+        winner = f'team_{self.t_cap.name}' \
+            if self.values[0] == self.t_cap.id else \
+            f'team_{self.e_cap.name}'
 
-        embed = discord.Embed(title=f'Close по {self.game.name} завершен',
-                              description=f'Победитель: ***{winner}***', colour=2829617)
-        embed.add_field(name=f'team_{self.team_captain.name}', value=team_value)
-        embed.add_field(name=f'team_{self.enemy_captain.name}', value=enemy_value)
-        embed.set_image(url=f'{games_url.get(self.game.value)}')
+        embed = BasicEmbed(f'Close по {self.game.name} завершен', f'Победитель: ***{winner}***')
+        embed.add_field(name=f'team_{self.t_cap.name}', value=team_value)
+        embed.add_field(name=f'team_{self.e_cap.name}', value=enemy_value)
+        embed.set_image(url=games.get(self.game.value))
         embed.set_footer(text=f'Hosted by {self.host.name}')
 
         await history_channel.send(embed=embed)
@@ -86,14 +85,14 @@ class Winner(discord.ui.Select):
 
 class WinnerView(discord.ui.View):
     def __init__(self,
-                 team_captain: discord.Member,
-                 enemy_captain: discord.Member,
-                 team_players: list[discord.Member],
-                 enemy_players: list[discord.Member],
+                 t_cap: discord.Member,
+                 e_cap: discord.Member,
+                 t_players: list[discord.Member],
+                 e_players: list[discord.Member],
                  game: discord.app_commands.Choice,
                  host: discord.Member):
         super().__init__()
 
-        winner = Winner(team_captain, enemy_captain, team_players, enemy_players, game, host)
+        winner = Winner(t_cap, e_cap, t_players, e_players, game, host)
         self.add_item(winner)
         self.timeout = 60 * 5

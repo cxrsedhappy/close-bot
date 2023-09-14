@@ -1,12 +1,12 @@
 import logging
 import discord
+import settings
 
 from discord import app_commands
 from discord.ext import commands
 
-import settings
 from views.menu import NotificationsView
-from modals.say import Emb
+from modals.say import CreateEmbed
 
 _log = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class TemplateCog(commands.Cog):
     @app_commands.command(name='say', description='creates an embed')
     @app_commands.guilds(discord.Object(settings.SERVER))
     async def say(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(Emb())
+        await interaction.response.send_modal(CreateEmbed())
 
 
 async def setup(bot: commands.Bot):

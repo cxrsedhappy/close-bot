@@ -25,17 +25,19 @@ class PickPlayer(discord.ui.Select):
 
 
 class PickView(discord.ui.View):
-    def __init__(self, players: list[discord.Member], captain):
+    def __init__(self, captain: discord.Member, players: list[discord.Member]):
         super().__init__()
-        self.players = players
         self.captain = captain
-        self.timeout = 60 * 3
+        self.timeout = 20
 
-        dropdown = PickPlayer(self.players)
+        dropdown = PickPlayer(players)
         self.add_item(dropdown)
-        self.picked_player = self.players[randint(0, len(self.players) - 1)]
+        self.picked_player = players[randint(0, len(players) - 1)].id
 
     async def interaction_check(self, interaction: discord.Interaction):
         if interaction.user == self.captain:
             return True
         return False
+
+    async def on_timeout(self) -> None:
+        self.stop()
