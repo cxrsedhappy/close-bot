@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from discord import Embed, Member
 from discord.app_commands import Choice
 
@@ -25,43 +23,33 @@ games = {
 }
 
 
-def BasicEmbed(title: str = '', description: str = '', colour=2829617) -> Embed:
+def basic_embed(title: str = '', description: str = '', colour=2829617) -> Embed:
     return Embed(title=title, description=description, colour=colour)
 
 
-def RegistrationEmbed(players: list[Member], game: Choice, host: Member) -> Embed:
+def reg_embed(players: list[Member], game: Choice) -> Embed:
     description = ''
-    for i, player in enumerate(players, 1):
+    for i, player in enumerate(players, start=1):
         description += f'{i}: {player.mention}\n'
 
-    embed = BasicEmbed(f'Игроки ({len(players)} из 10)', description)
+    embed = basic_embed(f'Игроки ({len(players)} из 10)', description)
     embed.set_thumbnail(url=thumbnails.get(len(players), 0))
     embed.set_image(url=games.get(game.value))
     embed.set_author(name=f"Регистрация на Close по {game.name}")
-    embed.set_footer(text=f'Клоз от {host.name}')
 
     return embed
 
 
-def CaptainEmbed(caps: tuple[Member, Member],
-                 remaining: list[Member],
-                 host: Member,
-                 teams: tuple[list[Member], list[Member]] = None) -> Embed:
-
-    if teams is None:
-        teams = [[], []]
-
-    embed = BasicEmbed("Выбор игроков", f'**Капитаны**: {caps[0].mention} и {caps[1].mention}')
-
+def cap_embed(team1: list[Member], team2: list[Member], remaining: list[Member]) -> Embed:
+    embed = basic_embed("Выбор игроков", f'**Капитаны**: {team1[0].mention} и {team2[0].mention}')
     msg = '\n'.join(player.mention for player in remaining)
-    t = '\n'.join(player.mention for player in teams[0])
-    e = '\n'.join(player.mention for player in teams[1])
+    t1 = '\n'.join(player.mention for player in team1)
+    t2 = '\n'.join(player.mention for player in team2)
 
     if msg != '':
         embed.add_field(name='Игроки', value=msg)
 
-    embed.add_field(name=f'team_{caps[0]}', value=t)
-    embed.add_field(name=f'team_{caps[1]}', value=e)
-    embed.set_footer(text=f'Клоз от {host.name}')
+    embed.add_field(name=f'team_{team1[0].name}', value=t1)
+    embed.add_field(name=f'team_{team2[0].name}', value=t2)
 
     return embed

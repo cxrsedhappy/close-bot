@@ -4,10 +4,10 @@ import discord
 import logging
 import settings
 
-from sqlalchemy import select
-
 from discord.ext import commands
-from data.db_session import create_session, global_init, Player
+
+from sqlalchemy import select
+from data.db_session import global_init, create_session, Player
 
 
 _log = logging.getLogger(__name__)
@@ -31,10 +31,9 @@ class Client(commands.Bot):
         session = await create_session()
         for member in self.get_guild(settings.SERVER).members:
             if not member.bot:
-                query = select(Player).where(Player.id == member.id)
-                exists = await session.execute(query)
+                exists = await session.execute(select(Player).where(Player.id == member.id))
                 if exists.scalar() is None:
-                    session.add(Player(member.id, 0))
+                    session.add(Player(member.id, f'team_{member.name}'))
 
         await session.commit()
         await session.close()
@@ -46,10 +45,9 @@ class Client(commands.Bot):
     async def on_member_join(self, member: discord.Member):
         session = await create_session()
 
-        query = select(Player).where(Player.id == member.id)
-        exists = await session.execute(query)
+        exists = await session.execute(select(Player).where(Player.id == member.id))
         if exists.scalar() is None:
-            session.add(Player(member.id, 0))
+            session.add(Player(member.id, f'team_{member.name}'))
 
         await session.commit()
         await session.close()

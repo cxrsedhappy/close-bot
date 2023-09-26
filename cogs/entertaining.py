@@ -6,7 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from views.registration import RegistrationView
-from utils import RegistrationEmbed
+from utils import reg_embed
 
 _log = logging.getLogger(__name__)
 
@@ -24,13 +24,11 @@ class CloseCog(commands.Cog):
         app_commands.Choice(name="Dota 2", value="dota")])
     @app_commands.guilds(discord.Object(settings.SERVER))
     async def create(self, interaction: discord.Interaction, game: discord.app_commands.Choice[str]):
-        category = self.bot.get_channel(settings.REG_CATEGORY_ID)
-        new_channel = await interaction.guild.create_text_channel(name=f'{game.name} close', category=category)
+        category = interaction.guild.get_channel(settings.REG_CATEGORY_ID)
 
-        await new_channel.send(
-            embed=RegistrationEmbed([], game, interaction.user),
-            view=RegistrationView(new_channel, game, interaction.user)
-        )
+        channel = await interaction.guild.create_text_channel(name=f'{game.name} close', category=category)
+        await channel.send(embed=reg_embed([], game), view=RegistrationView(game))
+
         await interaction.response.send_message(f'Успешно', ephemeral=True)
 
 

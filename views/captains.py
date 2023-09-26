@@ -4,40 +4,34 @@ import secrets
 import discord
 import settings
 
+from discord import Member
+from discord.app_commands import Choice
+
 from views.pick import PickView
 from views.menu import WinnerView
 
-from utils import BasicEmbed, CaptainEmbed
+from utils import basic_embed, cap_embed
+
+from sqlalchemy import select
+from data.db_session import Lobby, Player, PlayerClose, create_session, Teams, Games
 
 
 class CaptainsView(discord.ui.View):
-    def __init__(self,
-                 t_cap: discord.Member,
-                 e_cap: discord.Member,
-                 players: list[discord.Member],
-                 host: discord.Member,
-                 game: discord.app_commands.Choice,
-                 text: discord.TextChannel,
-                 voice: discord.VoiceChannel):
+    def __init__(self, attackers: list[Member], defenders: list[Member], players: list[Member], game: Choice):
         super().__init__()
-
         self.players = players
-        self.t_cap = t_cap
-        self.e_cap = e_cap
-        self.host = host
         self.game = game
 
-        self.text = text
-        self.voice = voice
-        self.timeout = 60 * 60 * 5  # 5 hours
+        self.attackers = attackers
+        self.defenders = defenders
 
-        self.t_players = []
-        self.e_players = []
-        self.vc_1 = None
-        self.vc_2 = None
+        self.vc1 = None
+        self.vc2 = None
         self.active_game = False
 
-    @discord.ui.button(label='Начать', style=discord.ButtonStyle.green, custom_id='registration_btn')
+        self.timeout = 60 * 60 * 5  # 5 hours
+
+    @discord.ui.button(label='Начать', style=discord.ButtonStyle.green)
     async def registration_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
 
@@ -45,69 +39,112 @@ class CaptainsView(discord.ui.View):
         await interaction.edit_original_response(view=self)
 
         turn = False
-        data = {'caps': (self.t_cap, self.e_cap), 'teams': (self.t_players, self.e_players)}
+        teams = (self.attackers, self.defenders)
+
         n = len(self.players)
         for i in range(n):
-            cap: discord.Member = data['caps'][turn]
-            team: list[discord.Member] = data['teams'][turn]
+            captain: discord.Member = teams[turn][0]
+            team: list[discord.Member] = teams[turn]
 
-            view = PickView(cap, self.players)
-            message: discord.WebhookMessage = await interaction.followup.send(f'{cap.mention}', view=view)
+            # Filling options (Temporary solution)
+            # Better create class LobbyPlayer with user and stats to reduce database usage
+            options = []
+            session = await create_session()
+            for member in self.players:
+                result = await session.execute(
+                    select(PlayerClose).join(Lobby)
+                    .where(PlayerClose.player_id == member.id)
+                    .where(Lobby.winner == PlayerClose.team)
+                )
+                wins = len(result.scalars().fetchall())
+                result = await session.execute(
+                    select(PlayerClose).join(Lobby)
+                    .where(PlayerClose.player_id == member.id)
+                    .where(Lobby.winner != PlayerClose.team)
+                )
+                loses = len(result.scalars().fetchall())
+                options.append(discord.SelectOption(
+                    label=f'{member.name}',
+                    description=f'Wins: {wins}, Loses: {loses}',
+                    value=f'{member.id}'
+                ))
+            await session.close()
+
+            view = PickView(captain, self.players, options)
+            message = await interaction.channel.send(f'{captain.mention}', view=view)
             await view.wait()
             await message.delete()
 
-            player = interaction.guild.get_member(int(view.picked_player))
-            team.append(player)
-            self.players.remove(player)
+            team.append(view.picked)
+            self.players.remove(view.picked)
 
-            await interaction.edit_original_response(
-                embed=CaptainEmbed(data['caps'], self.players, self.host, teams=data['teams']), view=self
-            )
+            _ = cap_embed(self.attackers, self.defenders, self.players)
+            await interaction.edit_original_response(embed=_, view=self)
             turn = not turn
 
         # Access to vc
-        self.t_players.append(self.t_cap)
-        self.e_players.append(self.e_cap)
+        self.vc1 = await interaction.channel.category.create_voice_channel(name=f'team_{self.attackers[0]}')
+        self.vc2 = await interaction.channel.category.create_voice_channel(name=f'team_{self.defenders[0]}')
+        await self.vc1.edit(sync_permissions=True)
+        await self.vc2.edit(sync_permissions=True)
 
-        self.vc_1 = await self.text.category.create_voice_channel(name=f'team_{self.t_cap}')
-        self.vc_2 = await self.text.category.create_voice_channel(name=f'team_{self.e_cap}')
-        await self.vc_1.edit(sync_permissions=True)
-        await self.vc_2.edit(sync_permissions=True)
-
-        for team, enemy in zip(self.t_players, self.e_players):
-            await self.vc_1.set_permissions(target=enemy, overwrite=discord.PermissionOverwrite(connect=False))
-            await self.vc_2.set_permissions(target=team, overwrite=discord.PermissionOverwrite(connect=False))
-
-        # Move players to their team voice
-        for team, enemy in zip(self.t_players, self.e_players):
-            await team.move_to(self.vc_1)
-            await enemy.move_to(self.vc_2)
+        for t, e in zip(self.attackers, self.defenders):
+            await self.vc1.set_permissions(target=e, overwrite=discord.PermissionOverwrite(connect=False))
+            await t.move_to(self.vc1)
+            await self.vc2.set_permissions(target=t, overwrite=discord.PermissionOverwrite(connect=False))
+            await e.move_to(self.vc2)
 
         if self.game.value == 'dota':
             alphabet = string.ascii_letters + string.digits
             lobby = f'discord.gg/5x5_{random.randint(0, 100)}'
             password = ''.join(secrets.choice(alphabet) for _ in range(6))
-            await interaction.followup.send(embed=BasicEmbed(lobby, password))
+            await interaction.channel.send(embed=basic_embed(lobby, password))
 
         self.active_game = True
-        await interaction.followup.send(f"Удачной игры!")
+        await interaction.channel.send(f"Удачной игры!")
 
-    @discord.ui.button(label='Завершить', style=discord.ButtonStyle.red, custom_id='exit_btn')
+    @discord.ui.button(label='Завершить', style=discord.ButtonStyle.red)
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """TODO: simplify way to add players"""
         if not self.active_game:
             await interaction.response.send_message(
-                embed=BasicEmbed('Не активная игра', 'Дождитесь окончания пика для завершения'), ephemeral=True
-            )
+                embed=basic_embed('Неактивная игра', 'Дождитесь окончания пика для завершения'), ephemeral=True)
             return
 
-        view = WinnerView(self.t_cap, self.e_cap, self.t_players, self.e_players, self.game, self.host)
+        view = WinnerView(self.attackers, self.defenders, self.game)
         await interaction.response.send_message(view=view, ephemeral=True)
         await view.wait()
 
-        await interaction.channel.send('Завершено')
-        await self.vc_1.delete()
-        await self.vc_2.delete()
+        session = await create_session()
+        result = await session.execute(select(Player).where(Player.id.in_(tuple([p.id for p in self.attackers]))))
+        __attackers: list[Player] = result.scalars().fetchall()
 
+        result = await session.execute(select(Player).where(Player.id.in_(tuple([p.id for p in self.defenders]))))
+        __defenders: list[Player] = result.scalars().fetchall()
+
+        lobby = Lobby(
+            Teams.team1 if view.winner == self.attackers[0].id else Teams.team2,
+            Games.dota if self.game.value == 'dota' else Games.valorant
+        )
+
+        for player in __attackers:
+            a_table = PlayerClose(team=Teams.team1)
+            a_table.player = player
+            lobby.players.append(a_table)
+            session.add(a_table)
+
+        for player in __defenders:
+            a_table = PlayerClose(team=Teams.team2)
+            a_table.player = player
+            lobby.players.append(a_table)
+            session.add(a_table)
+
+        await session.commit()
+        await session.close()
+
+        await interaction.channel.send('Завершено')
+        await self.vc1.delete()
+        await self.vc2.delete()
         self.stop()
 
     async def interaction_check(self, interaction: discord.Interaction):
