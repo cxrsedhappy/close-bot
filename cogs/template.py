@@ -20,7 +20,11 @@ class TemplateCog(commands.Cog):
     @app_commands.command(name='say', description='Создает один эмбед')
     @app_commands.guilds(discord.Object(settings.SERVER))
     async def say(self, interaction: discord.Interaction, json: str):
-        await interaction.channel.send(embed=discord.Embed().from_dict(js.loads(json)))
+        try:
+            text: dict = js.loads(json)
+        except js.JSONDecodeError:
+            await interaction.response.send_message('Неправильный JSON формат', ephemeral=True)
+        await interaction.channel.send(embed=discord.Embed().from_dict(text))
         await interaction.response.send_message('Готово', ephemeral=True)
 
     @app_commands.command(name='notify', description='Создает поле для выбора уведомлений')

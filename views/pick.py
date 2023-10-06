@@ -3,7 +3,7 @@ import discord
 from random import randint
 
 
-class Pick(discord.ui.Select):
+class Dropdown(discord.ui.Select):
     def __init__(self, options):
         super().__init__(placeholder='Выберите игрока', min_values=1, max_values=1, options=options)
 
@@ -14,17 +14,18 @@ class Pick(discord.ui.Select):
         await interaction.response.send_message(f'Вы выбрали {player}', ephemeral=True)
 
 
-class PickView(discord.ui.View):
+class Pick(discord.ui.View):
     def __init__(self, captain: discord.Member, players: list[discord.Member], options: list[discord.SelectOption]):
         super().__init__()
-        self.captain = captain
+        self._captain = captain
+
+        self.picked: discord.Member = players[randint(0, len(players) - 1)]
+        self.add_item(Dropdown(options))
+
         self.timeout = 120
 
-        self.add_item(Pick(options))
-        self.picked: discord.Member = players[randint(0, len(players) - 1)]
-
     async def interaction_check(self, interaction: discord.Interaction):
-        if interaction.user == self.captain:
+        if interaction.user == self._captain:
             return True
         return False
 

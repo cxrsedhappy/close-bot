@@ -1,11 +1,9 @@
 import discord
-from discord.app_commands import Choice
-from sqlalchemy import select
-
 import settings
-from data.db_session import create_session, Player
 
-from utils import basic_embed, games
+from discord.app_commands import Choice
+from data.db_session import Player
+from images import games
 
 
 class Notifications(discord.ui.Select):
@@ -52,53 +50,56 @@ class NotificationsView(discord.ui.View):
 
 
 class Winner(discord.ui.Select):
-    def __init__(self, attackers: list[discord.Member], defenders: list[discord.Member], game: Choice):
+    def __init__(
+            self,
+            attackers: list[discord.Member],
+            defenders: list[discord.Member],
+            options: list[discord.SelectOption],
+            game: Choice
+    ) -> None:
 
-        self.attackers = attackers
-        self.defenders = defenders
-        self.game = game
-
-        options = [
-            discord.SelectOption(label=f'team_{self.attackers[0].name}', value=f'{self.attackers[0].id}'),
-            discord.SelectOption(label=f'team_{self.defenders[0].name}', value=f'{self.defenders[0].id}'),
-        ]
+        self._attackers = attackers
+        self._defenders = defenders
+        self._game = game
 
         super().__init__(placeholder='Выберите победителя', min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         history_channel = interaction.guild.get_channel(settings.HISTORY_CHANNEL_ID)
 
-        session = await create_session()
-
-        result = await session.execute(select(Player).where(Player.id == self.attackers[0].id))
-        cap1: Player = result.scalars().one_or_none()
-        result = await session.execute(select(Player).where(Player.id == self.defenders[0].id))
-        cap2: Player = result.scalars().one_or_none()
+        cap1 = await Player.get_player(self._attackers[0].id)
+        cap2 = await Player.get_player(self._defenders[0].id)
 
         winner = f'{cap1.lobby_nickname if int(self.values[0]) == cap1.id else cap2.lobby_nickname}'
-        team_value = '\n'.join(player.mention for player in self.attackers)
-        enemy_value = '\n'.join(player.mention for player in self.defenders)
-        embed = basic_embed(f'Close по {self.game.name} завершен', f'Победитель: **{winner}**')
+        team_value = '\n'.join(player.mention for player in self._attackers)
+        enemy_value = '\n'.join(player.mention for player in self._defenders)
+        embed = discord.Embed(
+            title=f'Close по {self._game.name} завершен',
+            description=f'Победитель: **{winner}**',
+            colour=2829617
+        )
         embed.add_field(name=f'{cap1.lobby_nickname}', value=team_value)
         embed.add_field(name=f'{cap2.lobby_nickname}', value=enemy_value)
-        embed.set_image(url=games.get(self.game.value))
-
-        await session.close()
+        embed.set_image(url=games.get(self._game.value))
 
         await history_channel.send(embed=embed)
         await interaction.response.send_message('Успешно', ephemeral=True)
-        self.view.winner = int(self.values[0])
+        self.view.winner_id = int(self.values[0])
         self.view.stop()
 
 
 class WinnerView(discord.ui.View):
-    def __init__(self, attackers: list[discord.Member], defenders: list[discord.Member], game: Choice):
+    def __init__(
+            self,
+            attackers: list[discord.Member],
+            defenders: list[discord.Member],
+            options: list[discord.SelectOption],
+            game: Choice
+    ) -> None:
         super().__init__()
-
-        dropdown = Winner(attackers, defenders, game)
-        self.add_item(dropdown)
+        self.add_item(Winner(attackers, defenders, options, game))
         self.timeout = 60 * 5
-        self.winner: int = attackers[0].id
+        self.winner_id: int = attackers[0].id
 
     async def on_timeout(self) -> None:
         self.stop()
