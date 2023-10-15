@@ -1,8 +1,7 @@
-import logging
 import os
-import secrets
 import string
-
+import logging
+import secrets
 import discord
 import settings
 
@@ -14,7 +13,8 @@ from discord.ext import commands
 from views.profile import Private
 
 from sqlalchemy import select
-from data.db_session import Player, create_session, Lobby
+from data.db_session import create_session
+from data.tables import Player
 
 _log = logging.getLogger(__name__)
 
@@ -52,27 +52,29 @@ class ProfileCog(commands.Cog):
 
         # Add info
         pfp = Image.open(BytesIO(await member.display_avatar.read()))
-        pfp = pfp.resize((140, 140))
-        background.paste(pfp, (190, 125))
-        draw.text((347, 120), f"{member.name}", fill=(255, 255, 255), font=font)
+        pfp = pfp.resize((186, 186))
+        background.paste(pfp, (160, 104))
+        draw.text((365, 120), f"{member.name}", fill=(255, 255, 255), font=font)
         draw.text((400, 359), f"{player.coins}", fill=(255, 255, 255), font=font)
+        draw.text((330, 447), f"{', '.join(map(str, [clan.name for clan in player.clans]))}", fill=(255, 255, 255), font=font)
         draw.text((674, 546), f"{player.lobby_nickname}", fill=(255, 255, 255), font=font)
-        draw.text((1210, 115), f"{matches}", fill=(255, 255, 255), font=font)
+        draw.text((1210, 116), f"{matches}", fill=(255, 255, 255), font=font)
         draw.text((1243, 200), win_rate, fill=(255, 255, 255), font=font)
+        draw.text((1227, 282), f'{player.get_voice_activity()} часов', fill=(255, 255, 255), font=font)
 
+        # Add blur
         if player.is_private and not player.id == interaction.user.id and \
                 not interaction.user.guild_permissions.administrator:
             blur = Image.new("L", background.size, 0)
             draw = ImageDraw.Draw(blur)
             draw.rectangle((0, 0, 1600, 800), fill=0)
             blur.putalpha(160)
-            background = background.filter(ImageFilter.GaussianBlur(radius=20))
+            background = background.filter(ImageFilter.GaussianBlur(radius=18))
             foreground = Image.open("src/lock.png")
             background.paste(blur, (0, 0), blur.convert('RGBA'))
             background.paste(foreground, (0, 0), foreground.convert('RGBA'))
 
-        alphabet = string.ascii_letters + string.digits
-        name = ''.join(secrets.choice(alphabet) for _ in range(6))
+        name = ''.join(secrets.choice(string.ascii_letters) for _ in range(5))
         background.save(f'src/{name}.jpg')
 
         await interaction.response.send_message(
@@ -94,7 +96,7 @@ class ProfileCog(commands.Cog):
                 player.lobby_nickname = name
 
         embed = discord.Embed(description='Название команды **успешно** изменено', colour=2829617)
-        embed.set_author(name=f'Профиль {interaction.user.name}', icon_url=interaction.user.avatar.url)
+        embed.set_author(name=f'Профиль {interaction.user.name}', icon_url=interaction.user.display_avatar.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @profile.command(name='private', description='Закрыть/Открыть профиль')
@@ -105,16 +107,17 @@ class ProfileCog(commands.Cog):
                 player: Player = result.scalars().first()
                 if not player.privacy:
                     embed = discord.Embed(
-                        description=f'Стоимость закрытого профиля **1000** монет навсегда', colour=2829617)
+                        description=f'Стоимость закрытого профиля **1000** монет навсегда', colour=2829617
+                    )
                     embed.set_author(name=f'Изменение приватности {interaction.user.name}',
                                      icon_url=interaction.guild.get_member(player.id).display_avatar.url)
-                    await interaction.response.send_message(embed=embed, view=Private(interaction.user))
+                    await interaction.response.send_message(embed=embed, view=Private(interaction.user, embed))
                     return
 
                 player.is_private = not player.is_private
 
         embed = discord.Embed(
-            description=f'Вы изменили свой профиль на **{f"Закрытый" if player.is_private else f"Открытый"}**',
+            description=f'Вы изменили свой профиль на **{"Закрытый" if player.is_private else "Открытый"}**',
             colour=2829617
         )
         embed.set_author(

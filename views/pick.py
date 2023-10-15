@@ -22,12 +22,10 @@ class Pick(discord.ui.View):
         self.picked: discord.Member = players[randint(0, len(players) - 1)]
         self.add_item(Dropdown(options))
 
-        self.timeout = 120
+        self.timeout = 60
 
     async def interaction_check(self, interaction: discord.Interaction):
-        if interaction.user == self._captain:
-            return True
-        return False
+        return interaction.user == self._captain
 
     async def on_timeout(self) -> None:
         self.stop()

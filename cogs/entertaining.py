@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from views.registration import RegistrationView
+
 from images import mentions
 
 _log = logging.getLogger(__name__)

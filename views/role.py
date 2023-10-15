@@ -47,6 +47,4 @@ class RoleInfo(discord.ui.View):
             await interaction.response.edit_message(embed=self._queue[0], view=self)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id == self._author.id:
-            return True
-        return False
+        return interaction.user.id == self._author.id

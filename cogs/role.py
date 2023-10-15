@@ -5,8 +5,10 @@ import settings
 from discord import app_commands
 from discord.ext import commands
 
-from data.db_session import Role
 from views.role import RoleInfo
+
+from data.tables import Role
+
 
 _log = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class RoleCog(commands.Cog):
             embed.description += f'{i}) {members[i - 1].mention}\n'
             if i % 10 == 0:
                 embeds.append(embed)
-                embed = discord.Embed(title=f'Список носителей роли **{role.name}**', colour=2829617)
+                embed = discord.Embed(title=f'Список носителей роли **{role.name}**', description='', colour=2829617)
             i += 1
         else:
             if embed.description != '':

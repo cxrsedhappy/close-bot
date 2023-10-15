@@ -2,7 +2,9 @@ import discord
 import settings
 
 from discord.app_commands import Choice
-from data.db_session import Player
+
+from data.tables import Player
+
 from images import games
 
 

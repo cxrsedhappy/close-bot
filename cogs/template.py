@@ -1,7 +1,9 @@
 import logging
 import discord
 import settings
+
 import json as js
+
 from discord import app_commands
 from discord.ext import commands
 
@@ -22,8 +24,8 @@ class TemplateCog(commands.Cog):
     async def say(self, interaction: discord.Interaction, json: str):
         try:
             text: dict = js.loads(json)
-        except js.JSONDecodeError:
-            await interaction.response.send_message('Неправильный JSON формат', ephemeral=True)
+        except js.JSONDecodeError as e:
+            await interaction.response.send_message(f'Ошибка: {e}', ephemeral=True)
         await interaction.channel.send(embed=discord.Embed().from_dict(text))
         await interaction.response.send_message('Готово', ephemeral=True)
 

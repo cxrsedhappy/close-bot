@@ -39,11 +39,6 @@ class ShopView(discord.ui.View):
         self._queue.rotate(-1)
         await interaction.response.edit_message(embed=self._queue[0])
 
-    async def on_timeout(self) -> None:
-        self.children[0].disabled = True
-        self.children[1].disabled = True
-        self.children[2].disabled = True
-
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self._author.id:
             return True

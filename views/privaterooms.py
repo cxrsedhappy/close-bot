@@ -1,8 +1,10 @@
 import asyncio
 import discord
+import settings
+
 from discord import Embed
 
-from data.db_session import PrivateRoom
+from data.tables import PrivateRoom
 
 
 class PrivateRoomsView(discord.ui.View):
@@ -13,8 +15,7 @@ class PrivateRoomsView(discord.ui.View):
     @discord.ui.button(emoji='<:edit:995803494097371307>', style=discord.ButtonStyle.blurple)
     async def edit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
-
-        room = await PrivateRoom.get_room(interaction.user.id, interaction.user.voice.channel.id)
+        room = await PrivateRoom.get_room(interaction.user.id)
         if not room:
             _ = Embed(title='Ошибка', description='Это не ваша приватная комната', colour=2829617)
             await interaction.followup.send(embed=_, ephemeral=True)
@@ -50,10 +51,11 @@ class PrivateRoomsView(discord.ui.View):
     async def user_limit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
 
-        room = await PrivateRoom.get_room(interaction.user.id, interaction.user.voice.channel.id)
+        room = await PrivateRoom.get_room(interaction.user.id)
         if not room:
             await interaction.followup.send(
-                embed=Embed(title='Ошибка', description='Это не ваша комната', colour=2829617),
+                embed=Embed(
+                    title='Ошибка', description='Это не ваша комната', colour=2829617),
                 ephemeral=True
             )
             return
@@ -89,6 +91,6 @@ class PrivateRoomsView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.voice is not None:
-            if interaction.user.voice.channel.category.id == 1153441782953160795:
+            if interaction.user.voice.channel.category.id == settings.PRIVATE_ROOMS_CATEGORY_ID:
                 return True
         return False

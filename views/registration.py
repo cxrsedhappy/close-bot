@@ -5,18 +5,20 @@ import settings
 from random import randint
 from discord import Embed
 
+from views.captains import CaptainsView
+
 from sqlalchemy import select
-from data.db_session import create_session, Player
+from data.db_session import create_session
+from data.tables import Player
 
 from images import games, thumbnails
-from views.captains import CaptainsView
 
 
 class RegistrationView(discord.ui.View):
     def __init__(self, game: discord.app_commands.Choice):
         super().__init__()
         self.game: discord.app_commands.Choice = game
-        self.timeout = 60 * 60 * 24  # 1 Day
+        self.timeout = 60 * 60 * 24 * 2  # 2 Days
 
         self.players: list[discord.Member] = []
 
@@ -29,8 +31,18 @@ class RegistrationView(discord.ui.View):
         embed.set_thumbnail(url=thumbnails.get(len(self.players), 0))
         embed.set_image(url=games.get(self.game.value))
         embed.set_author(name=f"Регистрация на Close по {self.game.name}")
-
         return embed
+
+    @staticmethod
+    async def _remove_from_registration(players: list[discord.Member]):
+        async with create_session() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Player).where(Player.id.in_(tuple([_.id for _ in players])))
+                )
+                players = result.scalars().fetchall()
+                for p in players:
+                    p.is_registered = False
 
     @discord.ui.button(label='Регистрация', style=discord.ButtonStyle.green, custom_id='registration_btn')
     async def registration_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -60,12 +72,12 @@ class RegistrationView(discord.ui.View):
                             colour=2829617),
                         ephemeral=True)
                     return
-                if len(self.players) <= 1:
+                if len(self.players) <= 9:
                     self.players.append(interaction.user)
                     player.is_registered = True
 
         await interaction.edit_original_response(embed=self.embed(), view=self)
-        if len(self.players) == 2:
+        if len(self.players) == 10:
             for btn in self.children:
                 btn.disabled = True
             await interaction.edit_original_response(embed=self.embed(), view=self)
@@ -95,12 +107,12 @@ class RegistrationView(discord.ui.View):
 
             # Send message to voice chat
             msg = ' '.join(player.mention for player in self.players)
-            await txt_channel.send(f'{msg} У вас 10 минут чтобы зайти в канал {vc_channel.mention}')
+            await txt_channel.send(f'{msg} У вас 5 минут чтобы зайти в канал {vc_channel.mention}')
 
             # Voice check 5 minutes
             ready = False
-            to_ping = []
-            for i in range(1):
+            to_ping: list[discord.Member] = []
+            for i in range(19):
                 await asyncio.sleep(15)
                 to_ping = list(set(self.players) - set(vc_channel.members))
                 if not to_ping:
@@ -114,26 +126,18 @@ class RegistrationView(discord.ui.View):
                 msg = ' '.join(player.mention for player in to_ping)
                 await txt_channel.send(f'{msg} **не находятся** в голосовом канале. Игра не может быть начата\n'
                                        f'Будет проведен донабор игроков')
-                async with create_session() as session:
-                    async with session.begin():
-                        result = await session.execute(
-                            select(Player).where(Player.id.in_(tuple([p.id for p in to_ping])))
-                        )
-                        __players: list[Player] = result.scalars().fetchall()
-                        for p in __players:
-                            p.is_registered = False
-
+                await self._remove_from_registration(to_ping)
                 for player in to_ping:
                     self.players.remove(player)
+
+                for btn in self.children:
+                    btn.disabled = False
+                await interaction.edit_original_response(embed=self.embed(), view=self)
 
                 await asyncio.sleep(5)
                 await txt_channel.delete()
                 await vc_channel.delete()
                 await category.delete()
-
-                for btn in self.children:
-                    btn.disabled = False
-                await interaction.edit_original_response(embed=self.embed(), view=self)
                 return
 
             # Create embed
@@ -156,12 +160,7 @@ class RegistrationView(discord.ui.View):
     @discord.ui.button(label='Выйти', style=discord.ButtonStyle.red, custom_id='exit_btn')
     async def exit_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user in self.players:
-            async with create_session() as session:
-                async with session.begin():
-                    result = await session.execute(select(Player).where(Player.id == interaction.user.id))
-                    player: Player = result.scalars().first()
-                    player.is_registered = False
-
+            await self._remove_from_registration([interaction.user])
             self.players.remove(interaction.user)
             await interaction.response.edit_message(embed=self.embed())
             return
@@ -172,23 +171,9 @@ class RegistrationView(discord.ui.View):
     @discord.ui.button(label='Закрыть', style=discord.ButtonStyle.red, custom_id='close_btn')
     async def close_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.guild_permissions.administrator or settings.CLOSER_ROLE in interaction.user.roles:
-            async with create_session() as session:
-                async with session.begin():
-                    result = await session.execute(
-                        select(Player).where(Player.id.in_(tuple([p.id for p in self.players])))
-                    )
-                    players = result.scalars().fetchall()
-                    for p in players:
-                        p.is_registered = False
+            await self._remove_from_registration(self.players)
             await interaction.channel.delete()
             self.stop()
 
     async def on_timeout(self) -> None:
-        async with create_session() as session:
-            async with session.begin():
-                result = await session.execute(
-                    select(Player).where(Player.id.in_(tuple([p.id for p in self.players])))
-                )
-                players = result.scalars().fetchall()
-                for p in players:
-                    p.is_registered = False
+        await self._remove_from_registration(self.players)

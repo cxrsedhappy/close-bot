@@ -11,7 +11,8 @@ from views.pick import Pick
 from views.menu import WinnerView
 
 from sqlalchemy import select
-from data.db_session import Lobby, Player, PlayerClose, create_session, Teams, Games
+from data.db_session import create_session
+from data.tables import Lobby, Player, PlayerClose, Teams, Games
 
 
 class CaptainsView(discord.ui.View):
@@ -184,6 +185,4 @@ class CaptainsView(discord.ui.View):
         self.stop()
 
     async def interaction_check(self, interaction: discord.Interaction):
-        if interaction.user.guild_permissions.administrator or settings.CLOSER_ROLE in interaction.user.roles:
-            return True
-        return False
+        return interaction.user.guild_permissions.administrator or settings.CLOSER_ROLE in interaction.user.roles

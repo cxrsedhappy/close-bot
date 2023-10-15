@@ -7,7 +7,8 @@ import settings
 from discord.ext import commands
 
 from sqlalchemy import select
-from data.db_session import global_init, create_session, Player, Role
+from data.db_session import global_init, create_session
+from data.tables import Player
 
 _log = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class Client(commands.Bot):
         for fn in os.listdir("./cogs"):
             if fn.endswith(".py"):
                 await client.load_extension(f'cogs.{fn[:-3]}')
-        # await self.tree.sync(guild=discord.Object(settings.SERVER))
+        await self.tree.sync(guild=discord.Object(settings.SERVER))
         _log.info("Commands synced")
 
     async def on_ready(self) -> None:
@@ -35,10 +36,10 @@ class Client(commands.Bot):
                         if exists.scalar() is None:
                             session.add(Player(member.id, f'team_{member.name}'))
 
-                for role in self.get_guild(settings.SERVER).roles:
-                    exists = await session.execute(select(Role).where(Role.id == role.id))
-                    if exists.scalar() is None:
-                        session.add(Role(role.id, client.application.id))
+                # for role in self.get_guild(settings.SERVER).roles:
+                #     exists = await session.execute(select(Role).where(Role.id == role.id))
+                #     if exists.scalar() is None:
+                #         session.add(Role(role.id, client.application.id))
 
         activity = discord.Activity(name="Боже, храни Америку", type=discord.ActivityType.playing)
         await client.change_presence(activity=activity)
